@@ -152,7 +152,7 @@ fn build_base_client_payload(
         }),
         web_info: if profile.include_web_info {
             buffa::MessageField::some(wa::client_payload::WebInfo {
-                web_sub_platform: Some(wa::client_payload::web_info::WebSubPlatform::WEB_BROWSER),
+                web_sub_platform: Some(profile.web_sub_platform),
                 ..Default::default()
             })
         } else {
@@ -1036,6 +1036,60 @@ mod tests {
             web_info.web_sub_platform,
             Some(wa::client_payload::web_info::WebSubPlatform::WEB_BROWSER)
         );
+    }
+
+    fn encoded_client_payload(device: &Device) -> wa::ClientPayload {
+        let bytes = device.get_client_payload().encode_to_vec();
+        wa::ClientPayload::decode_from_slice(bytes.as_slice()).expect("decode ClientPayload")
+    }
+
+    #[test]
+    fn desktop_web_sub_platform_reaches_encoded_registration_payload() {
+        let mut device = Device::new();
+        device.set_client_profile(ClientProfile::web_with_sub_platform(
+            wa::client_payload::web_info::WebSubPlatform::WIN_HYBRID,
+        ));
+
+        let payload = encoded_client_payload(&device);
+        assert_eq!(
+            payload.user_agent.as_option().expect("user_agent").platform,
+            Some(wa::client_payload::user_agent::Platform::WEB),
+            "desktop web profile must not switch to the native Windows user agent"
+        );
+        assert_eq!(
+            payload
+                .web_info
+                .as_option()
+                .expect("web_info")
+                .web_sub_platform,
+            Some(wa::client_payload::web_info::WebSubPlatform::WIN_HYBRID)
+        );
+        assert!(payload.device_pairing_data.is_set());
+    }
+
+    #[test]
+    fn desktop_web_sub_platform_reaches_encoded_login_payload() {
+        let mut device = Device::new();
+        device.set_client_profile(ClientProfile::web_with_sub_platform(
+            wa::client_payload::web_info::WebSubPlatform::WIN_HYBRID,
+        ));
+        device.pn = Some("12345:0@s.whatsapp.net".parse().unwrap());
+
+        let payload = encoded_client_payload(&device);
+        assert_eq!(
+            payload.user_agent.as_option().expect("user_agent").platform,
+            Some(wa::client_payload::user_agent::Platform::WEB),
+            "desktop web profile must not switch to the native Windows user agent"
+        );
+        assert_eq!(
+            payload
+                .web_info
+                .as_option()
+                .expect("web_info")
+                .web_sub_platform,
+            Some(wa::client_payload::web_info::WebSubPlatform::WIN_HYBRID)
+        );
+        assert!(payload.device_pairing_data.is_unset());
     }
 
     #[test]
