@@ -422,7 +422,7 @@ pub(crate) mod test_alloc {
 /// name. `resync_app_state` rejects a request naming it.
 pub use wacore::appstate::patch_decode::WAPatchName;
 pub use wacore::appstate::schemas;
-pub use wacore::client_profile::ClientProfile;
+pub use wacore::client_profile::{ClientProfile, WebSubPlatform};
 pub use wacore::store::traits::StoredMessageSecret;
 /// Optional metrics emission (the `metrics` feature). No-op when the feature is off.
 pub use wacore::telemetry;

@@ -3,6 +3,8 @@
 
 use waproto::whatsapp as wa;
 
+pub use wa::client_payload::web_info::WebSubPlatform;
+
 #[derive(Debug, Clone)]
 pub struct ClientProfile {
     pub user_agent_platform: wa::client_payload::user_agent::Platform,
@@ -10,6 +12,9 @@ pub struct ClientProfile {
     pub os_version: String,
     pub manufacturer: String,
     pub include_web_info: bool,
+    /// `ClientPayload.WebInfo.web_sub_platform` when `include_web_info` is
+    /// enabled. Desktop web companions still advertise `Platform::WEB`.
+    pub web_sub_platform: WebSubPlatform,
     /// `ClientPayload.passive` value on login. WA Web defaults to `false` so
     /// the server delivers queued offline messages on (re)connect. Set to
     /// `true` to keep the connection passive (server holds queued messages
@@ -40,10 +45,23 @@ impl ClientProfile {
             os_version: "0.1.0".to_string(),
             manufacturer: String::new(),
             include_web_info: true,
+            web_sub_platform: WebSubPlatform::WEB_BROWSER,
             passive_login: false,
             phone_id: None,
             locale_language: "en".to_string(),
             locale_country: "US".to_string(),
+        }
+    }
+
+    /// A web client running in a desktop shell.
+    ///
+    /// Unlike [`ClientProfile::windows`] and [`ClientProfile::macos`], this
+    /// keeps the user-agent platform set to `WEB` and selects the desktop shell
+    /// through `WebInfo.web_sub_platform`.
+    pub fn web_with_sub_platform(web_sub_platform: WebSubPlatform) -> Self {
+        Self {
+            web_sub_platform,
+            ..Self::web()
         }
     }
 
@@ -54,6 +72,7 @@ impl ClientProfile {
             os_version: os_version.into(),
             manufacturer: String::new(),
             include_web_info: false,
+            web_sub_platform: WebSubPlatform::WEB_BROWSER,
             passive_login: false,
             phone_id: None,
             locale_language: "en".to_string(),
@@ -68,6 +87,7 @@ impl ClientProfile {
             os_version: os_version.into(),
             manufacturer: String::new(),
             include_web_info: false,
+            web_sub_platform: WebSubPlatform::WEB_BROWSER,
             passive_login: false,
             phone_id: None,
             locale_language: "en".to_string(),
@@ -82,6 +102,7 @@ impl ClientProfile {
             os_version: os_version.into(),
             manufacturer: "Apple".to_string(),
             include_web_info: false,
+            web_sub_platform: WebSubPlatform::WEB_BROWSER,
             passive_login: false,
             phone_id: None,
             locale_language: "en".to_string(),
@@ -96,6 +117,7 @@ impl ClientProfile {
             os_version: os_version.into(),
             manufacturer: "Apple".to_string(),
             include_web_info: false,
+            web_sub_platform: WebSubPlatform::WEB_BROWSER,
             passive_login: false,
             phone_id: None,
             locale_language: "en".to_string(),
@@ -110,6 +132,7 @@ impl ClientProfile {
             os_version: os_version.into(),
             manufacturer: String::new(),
             include_web_info: false,
+            web_sub_platform: WebSubPlatform::WEB_BROWSER,
             passive_login: false,
             phone_id: None,
             locale_language: "en".to_string(),
@@ -133,6 +156,20 @@ mod tests {
         assert_eq!(p.os_version, "0.1.0");
         assert_eq!(p.manufacturer, "");
         assert!(p.include_web_info);
+        assert_eq!(p.web_sub_platform, WebSubPlatform::WEB_BROWSER);
+    }
+
+    #[test]
+    fn desktop_web_profile_keeps_web_user_agent() {
+        for sub_platform in [WebSubPlatform::WIN_HYBRID, WebSubPlatform::DARWIN] {
+            let p = ClientProfile::web_with_sub_platform(sub_platform);
+            assert_eq!(
+                p.user_agent_platform,
+                wa::client_payload::user_agent::Platform::WEB
+            );
+            assert!(p.include_web_info);
+            assert_eq!(p.web_sub_platform, sub_platform);
+        }
     }
 
     #[test]
