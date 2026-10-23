@@ -1043,12 +1043,35 @@ mod tests {
         wa::ClientPayload::decode_from_slice(bytes.as_slice()).expect("decode ClientPayload")
     }
 
+    fn device_with_profile(profile: ClientProfile, id: Option<&str>) -> Device {
+        futures::executor::block_on(async {
+            use crate::store::PersistenceManager;
+            use crate::store::commands::DeviceCommand;
+            use crate::store::in_memory::InMemoryBackend;
+
+            let manager = PersistenceManager::new(Arc::new(InMemoryBackend::new()))
+                .await
+                .expect("persistence manager");
+            manager
+                .process_command(DeviceCommand::SetClientProfile(profile))
+                .await;
+            if let Some(id) = id {
+                manager
+                    .process_command(DeviceCommand::SetId(Some(id.parse().expect("device id"))))
+                    .await;
+            }
+            manager.get_device_snapshot().await
+        })
+    }
+
     #[test]
     fn desktop_web_sub_platform_reaches_encoded_registration_payload() {
-        let mut device = Device::new();
-        device.set_client_profile(ClientProfile::web_with_sub_platform(
-            wa::client_payload::web_info::WebSubPlatform::WIN_HYBRID,
-        ));
+        let device = device_with_profile(
+            ClientProfile::web_with_sub_platform(
+                wa::client_payload::web_info::WebSubPlatform::WIN_HYBRID,
+            ),
+            None,
+        );
 
         let payload = encoded_client_payload(&device);
         assert_eq!(
@@ -1069,11 +1092,12 @@ mod tests {
 
     #[test]
     fn desktop_web_sub_platform_reaches_encoded_login_payload() {
-        let mut device = Device::new();
-        device.set_client_profile(ClientProfile::web_with_sub_platform(
-            wa::client_payload::web_info::WebSubPlatform::WIN_HYBRID,
-        ));
-        device.pn = Some("12345:0@s.whatsapp.net".parse().unwrap());
+        let device = device_with_profile(
+            ClientProfile::web_with_sub_platform(
+                wa::client_payload::web_info::WebSubPlatform::WIN_HYBRID,
+            ),
+            Some("12345:0@s.whatsapp.net"),
+        );
 
         let payload = encoded_client_payload(&device);
         assert_eq!(
